@@ -239,6 +239,38 @@
     #printArea tr.p-done td{color:#888;}
     #printArea .p-stats{margin-top:12px;font-size:.8rem;color:#555;}
   }
+
+  /* mobile / narrow screens */
+  @media (max-width: 640px){
+    body{padding:14px 10px 60px;}
+    .wrap{max-width:100%;}
+    header{flex-direction:column;align-items:flex-start;gap:12px;}
+    .brand{gap:10px;}
+    .brand-mark .eut-logo{width:64px;}
+    .brand-divider{display:none;}
+    h1{font-size:1.1rem;}
+    .subtitle{font-size:.78rem;}
+    .header-right{width:100%;flex-direction:column;align-items:stretch;gap:8px;}
+    .year-input{justify-content:space-between;width:100%;}
+    .year-input input{flex:0 0 76px;}
+    .save-btn, .export-btn{width:100%;justify-content:center;}
+    .tabs{gap:5px;margin-bottom:12px;}
+    .tab{padding:5px 10px;font-size:.7rem;}
+    .nature-gear-row{gap:8px;}
+    .gear-link{font-size:.7rem;padding:5px 10px;}
+    .task-card{padding:10px 10px;}
+    .task-top{flex-wrap:wrap;row-gap:6px;}
+    .task-text-wrap{flex:1 1 100%;order:1;}
+    .task-top .checkbox{order:0;}
+    .task-top select{order:2;}
+    .task-top .del-btn{order:3;margin-left:auto;}
+    .task-meta{gap:8px 10px;}
+    .field{flex:1 1 calc(50% - 10px);min-width:0;}
+    .field select, .field input{width:100%;}
+    .footer-bar{flex-direction:column;align-items:flex-start;gap:10px;}
+    .util-row{gap:10px;}
+    .reset-btn{width:100%;}
+  }
 </style>
 </head>
 <body>
@@ -637,7 +669,6 @@ function buildCard(t){
   const card = document.createElement('div');
   card.className = 'task-card' + (t.status === 'done' ? ' done' : '');
 
-  // top row: checkbox, text, priority, delete
   const top = document.createElement('div');
   top.className = 'task-top';
 
@@ -678,7 +709,6 @@ function buildCard(t){
 
   card.appendChild(top);
 
-  // meta row
   const meta = document.createElement('div');
   meta.className = 'task-meta';
 
@@ -729,7 +759,6 @@ function buildCard(t){
 
   card.appendChild(meta);
 
-  // notes row
   const notesWrap = document.createElement('div');
   notesWrap.className = 'task-notes';
   const inpNotes = document.createElement('input');
