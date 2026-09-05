@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Suivi de tâches — EUT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eff3ea;
+    --card:#ffffff;
+    --ink:#19283f;
+    --muted:#5c6b78;
+    --line:#dbe1d6;
+    --accent:#e35d54;
+    --accent-dark:#19283f;
+    --danger:#e35d54;
+    --danger-soft:#f7e3e1;
+    --warn:#e56843;
+    --warn-soft:#fbe4d8;
+    --ok:#009f6f;
+    --ok-soft:#deefe4;
+    --neutral-soft:#eef1ea;
+    --p1-bg:#bcd4f0; --p1-ink:#19283f;
+    --p2-bg:#9dcb8f; --p2-ink:#19283f;
+    --p3-bg:#bfe2e0; --p3-ink:#19283f;
+    --p4-bg:#f5a266; --p4-ink:#19283f;
+    --p5-bg:#f1e967; --p5-ink:#19283f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:Verdana, Geneva, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  h1, .brand-word, .export-btn, .tab, .add-row, .field-label{
+    font-family:'Poppins', Verdana, sans-serif;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:16px;flex-wrap:wrap;gap:16px;
+  }
+  .brand{display:flex;align-items:center;gap:16px;}
+  .brand-mark{display:flex;align-items:center;}
+  .brand-mark .eut-logo{width:100px;height:auto;display:block;}
+  .brand-divider{width:1px;height:42px;background:var(--line);}
+  h1{font-size:1.3rem;margin:0 0 4px;font-weight:700;color:var(--ink);}
+  .subtitle{color:var(--muted);font-size:.83rem;}
+  .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .year-input{font-size:.83rem;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .year-input input{
+    border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:76px;
+    font-family:inherit;font-size:.83rem;background:var(--card);color:var(--ink);
+  }
+  .export-btn{
+    display:flex;align-items:center;gap:6px;border:none;background:var(--accent-dark);
+    color:#fff;border-radius:6px;padding:9px 16px;font-size:.78rem;font-weight:700;
+    cursor:pointer;letter-spacing:.02em;text-transform:uppercase;
+  }
+  .export-btn:hover{background:var(--accent);}
+  .save-btn{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--accent-dark);
+    background:var(--card);color:var(--accent-dark);border-radius:6px;padding:9px 16px;
+    font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.02em;text-transform:uppercase;
+    font-family:'Poppins', Verdana, sans-serif;
+  }
+  .save-btn:hover{background:var(--neutral-soft);}
+  .save-btn.just-saved{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);}
+  .util-row{display:flex;gap:14px;flex-wrap:wrap;font-size:.75rem;}
+  .util-link{
+    color:var(--muted);cursor:pointer;background:none;border:none;font-family:inherit;
+    font-size:.75rem;text-decoration:underline;padding:0;
+  }
+  .util-link:hover{color:var(--accent-dark);}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+  .tab{
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    border-radius:20px;padding:6px 13px;font-size:.74rem;font-weight:700;
+    cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;
+    text-transform:uppercase;letter-spacing:.02em;
+  }
+  .tab:hover{border-color:var(--accent-dark);color:var(--accent-dark);}
+  .tab.active{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff;}
+  .tab .badge{background:rgba(0,0,0,.08);border-radius:10px;padding:1px 7px;font-size:.68rem;}
+  .tab.active .badge{background:rgba(255,255,255,.25);}
+  .tab.all{border-style:dashed;border-color:var(--accent);color:var(--accent);}
+  .tab.all.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .task-list{display:flex;flex-direction:column;gap:10px;}
+  .task-card{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;box-shadow:0 1px 2px rgba(25,40,63,.05);
+  }
+  .task-card.done{background:#f8f9f6;}
+  .task-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+  .checkbox{
+    width:19px;height:19px;border:1.5px solid var(--line);border-radius:5px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    background:#fff;flex-shrink:0;margin-top:2px;
+  }
+  .checkbox.checked{background:var(--ok);border-color:var(--ok);color:#fff;font-size:.7rem;}
+  .task-text-wrap{flex:1;min-width:0;}
+  input[type=text].task-text{
+    width:100%;border:1px solid transparent;background:transparent;font-weight:700;
+    font-family:'Poppins', Verdana, sans-serif;font-size:.95rem;color:var(--ink);
+    padding:4px 6px;border-radius:6px;
+  }
+  .task-card.done .task-text{text-decoration:line-through;color:var(--muted);}
+  input[type=text], input[type=date]{
+    border:1px solid transparent;background:transparent;font-family:inherit;
+    font-size:.85rem;color:var(--ink);padding:5px 6px;border-radius:6px;width:100%;
+  }
+  input[type=text]:hover, input[type=date]:hover{background:var(--neutral-soft);}
+  input[type=text]:focus, input[type=date]:focus{
+    outline:none;border:1px solid var(--accent-dark);background:#fff;
+  }
+  .del-btn{
+    border:none;background:transparent;color:var(--muted);cursor:pointer;
+    font-size:1.05rem;opacity:.45;padding:3px;flex-shrink:0;
+  }
+  .del-btn:hover{opacity:1;color:var(--danger);}
+
+  .task-meta{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:6px;}
+  .field{display:flex;flex-direction:column;gap:2px;min-width:96px;}
+  .field-label{
+    font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    font-weight:700;padding-left:2px;
+  }
+  .field select, .field input[type=date]{padding:5px 8px;}
+  select{
+    border:none;border-radius:20px;padding:5px 10px;font-size:.72rem;
+    font-family:'Poppins', Verdana, sans-serif;font-weight:700;cursor:pointer;
+    appearance:none;-webkit-appearance:none;padding-right:20px;
+    text-transform:uppercase;letter-spacing:.01em;
+  }
+  select.status-todo{background-color:var(--neutral-soft);color:var(--ink);}
+  select.status-progress{background-color:var(--warn-soft);color:var(--warn);}
+  select.status-done{background-color:var(--ok-soft);color:var(--ok);}
+  select.status-blocked{background-color:var(--danger-soft);color:var(--danger);}
+  select.p-haute{color:var(--danger);background-color:var(--danger-soft);}
+  select.p-moyenne{color:var(--warn);background-color:var(--warn-soft);}
+  select.p-basse{color:var(--ok);background-color:var(--ok-soft);}
+  select.tag-empty{background-color:var(--neutral-soft);color:var(--muted);}
+  select.month-select{background-color:var(--p1-bg);color:var(--p1-ink);}
+  .field.date-field input{
+    border:1px solid var(--line);border-radius:8px;background:var(--neutral-soft);
+    font-size:.78rem;font-weight:600;color:var(--ink);
+  }
+  .task-notes{margin-top:2px;}
+  .task-notes input{
+    font-size:.82rem;color:var(--muted);border:1px dashed var(--line);border-radius:6px;
+  }
+  .task-notes input:focus{color:var(--ink);}
+
+  .add-row{
+    display:flex;align-items:center;gap:8px;color:var(--accent-dark);
+    font-size:.82rem;font-weight:700;cursor:pointer;background:var(--card);
+    border:1px dashed var(--line);border-radius:8px;padding:10px 14px;
+    text-transform:uppercase;letter-spacing:.02em;width:100%;justify-content:center;
+    margin-top:4px;
+  }
+  .add-row:hover{color:var(--accent);border-color:var(--accent);}
+
+  .footer-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:16px;flex-wrap:wrap;gap:10px;font-size:.78rem;color:var(--muted);
+  }
+  .stats{display:flex;gap:14px;flex-wrap:wrap;}
+  .stat b{color:var(--ink);}
+  .reset-btn{
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    border-radius:6px;padding:6px 12px;font-family:inherit;font-size:.78rem;cursor:pointer;
+  }
+  .reset-btn:hover{border-color:var(--danger);color:var(--danger);}
+  .empty-hint{
+    padding:24px;text-align:center;color:var(--muted);font-size:.85rem;
+    background:var(--card);border:1px dashed var(--line);border-radius:10px;
+  }
+  .save-hint{font-size:.72rem;color:var(--ok);opacity:.85;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(25,40,63,.4);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:#fff;border-radius:10px;width:320px;max-width:90vw;padding:18px;
+    box-shadow:0 8px 30px rgba(25,40,63,.25);border-top:4px solid var(--accent);
+  }
+  .modal h3{margin:0 0 4px;font-size:.95rem;font-family:'Poppins',sans-serif;color:var(--ink);}
+  .modal .modal-sub{font-size:.75rem;color:var(--muted);margin-bottom:12px;}
+  .tag-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .tag-row input{
+    flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 8px;
+    font-family:inherit;font-size:.83rem;background:var(--neutral-soft);
+  }
+  .tag-row input:focus{outline:none;border-color:var(--accent-dark);background:#fff;}
+  .tag-row button{
+    border:none;background:transparent;color:var(--muted);cursor:pointer;
+    font-size:.9rem;opacity:.6;padding:4px;
+  }
+  .tag-row button:hover{opacity:1;color:var(--danger);}
+  .modal-add{display:flex;gap:6px;margin-top:10px;}
+  .modal-add input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:.83rem;}
+  .modal-add button{
+    border:none;background:var(--accent-dark);color:#fff;border-radius:6px;
+    padding:6px 12px;font-size:.8rem;font-weight:700;cursor:pointer;
+  }
+  .modal-add button:hover{background:var(--accent);}
+  .modal-close{
+    margin-top:14px;width:100%;border:1px solid var(--line);background:#fff;
+    border-radius:6px;padding:7px;font-size:.82rem;cursor:pointer;color:var(--ink);
+  }
+  .modal-close:hover{background:var(--neutral-soft);}
+
+  .nature-gear-row{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;}
+  .gear-link{
+    display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--muted);
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:5px 12px;cursor:pointer;font-family:'Poppins',sans-serif;font-weight:600;
+  }
+  .gear-link:hover{color:var(--accent-dark);border-color:var(--accent-dark);}
+
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block;position:absolute;top:0;left:0;width:100%;font-family:Verdana, sans-serif;padding:10px;}
+    #printArea h1{font-size:1.3rem;margin:0 0 2px;font-family:'Poppins',sans-serif;color:#19283f;}
+    #printArea .p-sub{color:#555;font-size:.8rem;margin-bottom:14px;}
+    #printArea table{width:100%;border-collapse:collapse;font-size:.78rem;}
+    #printArea th, #printArea td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top;}
+    #printArea th{background:#19283f;color:#fff;}
+    #printArea tr.p-done td{color:#888;}
+    #printArea .p-stats{margin-top:12px;font-size:.8rem;color:#555;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg class="eut-logo" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+        	 viewBox="0 0 444.97 251.83" style="enable-background:new 0 0 444.97 251.83;" xml:space="preserve">
+        <style type="text/css">
+        	.st0{fill:#1A2A3F;}
+        	.st1{fill:#E84E0F;}
+        </style>
+        <g>
+        	<path class="st0" d="M46.69,215.46c-8.39,0-15.22-6.83-15.22-15.22v-18h6.77v18c0,4.66,3.79,8.44,8.44,8.44s8.44-3.79,8.44-8.44
+        		v-18h6.77v18C61.91,208.63,55.08,215.46,46.69,215.46z"/>
+        	<g>
+        		<polygon class="st0" points="121.49,195.78 132.58,214.99 140.4,214.99 121.49,182.24 102.58,214.99 110.39,214.99 		"/>
+        	</g>
+        	<path class="st0" d="M84.6,215.46c-3.17,0-6.37-0.89-9.22-2.75c-7.81-5.1-10.01-15.6-4.91-23.41c5.1-7.81,15.6-10.01,23.41-4.91
+        		l-3.7,5.67c-4.68-3.06-10.98-1.74-14.03,2.95c-3.06,4.68-1.74,10.98,2.95,14.03c4.68,3.06,10.98,1.74,14.03-2.95l5.67,3.7
+        		C95.55,212.76,90.13,215.46,84.6,215.46z"/>
+        	<rect x="84.43" y="195.16" class="st0" width="15.06" height="6.77"/>
+        	<g>
+        		<polygon class="st1" points="121.49,210.34 113.44,224.28 129.54,224.28 		"/>
+        	</g>
+        </g>
+        <g>
+        	<path class="st1" d="M47.19,126.54v4.9H30.84v-24.33h15.93v4.86H36.58v4.81h9.2v4.76h-9.2v5H47.19z M40.73,104.77h-4.19l2.1-4.94
+        		h5.88L40.73,104.77z"/>
+        	<path class="st1" d="M48.57,119.3c0-7.24,5.91-12.72,13.7-12.72c6.46,0,11.61,3.92,12.84,9.69h-5.75
+        		c-1.09-2.87-3.74-4.67-7.08-4.67c-4.49,0-7.88,3.32-7.88,7.69c0,4.38,3.39,7.64,7.88,7.64c3.49,0,6.18-1.93,7.13-5.01h5.78
+        		c-1.2,6.02-6.35,10.04-12.92,10.04C54.47,131.96,48.57,126.49,48.57,119.3z"/>
+        	<path class="st1" d="M76.25,119.27c0-7.22,6.06-12.69,14.16-12.69c8.06,0,14.09,5.44,14.09,12.69c0,7.25-6.03,12.69-14.09,12.69
+        		C82.31,131.97,76.25,126.49,76.25,119.27z M98.68,119.27c0-4.41-3.55-7.73-8.28-7.73s-8.34,3.35-8.34,7.73
+        		c0,4.38,3.61,7.73,8.34,7.73S98.68,123.69,98.68,119.27z"/>
+        	<path class="st1" d="M123.41,126.55v4.88h-15.92v-24.33h5.74v19.44H123.41z"/>
+        	<path class="st1" d="M142.11,126.54v4.9h-16.34v-24.33h15.93v4.86H131.5v4.81h9.2v4.76h-9.2v5H142.11z"/>
+        	<path class="st1" d="M152.71,122.28v-15.17h5.75v14.93c0,3.04,2.16,4.96,5.22,4.96c3.05,0,5.21-1.92,5.21-4.96v-14.93h5.75v15.17
+        		c0,5.7-4.69,9.69-10.95,9.69C157.4,131.97,152.71,127.98,152.71,122.28z"/>
+        	<path class="st1" d="M201.35,107.11v24.33h-4.8l-12.01-15.2v15.2h-5.63v-24.33h5.18l11.63,14.84v-14.84H201.35z"/>
+        	<path class="st1" d="M205.9,107.11h5.74v24.33h-5.74V107.11z"/>
+        	<path class="st1" d="M239.3,107.11l-10.03,24.33h-5.41l-10.38-24.33h6.34l6.71,17.2l6.51-17.2H239.3z"/>
+        	<path class="st1" d="M257.65,126.54v4.9h-16.34v-24.33h15.93v4.86h-10.19v4.81h9.2v4.76h-9.2v5H257.65z"/>
+        	<path class="st1" d="M270.4,123.13h-3.68v8.3h-5.74v-24.33h10.71c5.31,0,9.27,3.36,9.27,8.05c0,3.18-1.9,5.78-4.83,7.08l5.87,9.2
+        		h-6.41L270.4,123.13z M266.72,118.27h4.59c2.4,0,3.83-1.32,3.83-3.15c0-1.82-1.43-3.15-3.83-3.15h-4.59V118.27z"/>
+        	<path class="st1" d="M283.03,123.55h5.78c0,2.35,2.12,3.48,4.46,3.48c2.16,0,4.27-1.05,4.27-2.86c0-1.89-2.42-2.4-5.29-3.02
+        		c-4-0.9-8.86-1.97-8.86-7.21c0-4.67,3.75-7.3,9.62-7.3c6.1,0,9.56,2.99,9.56,7.83h-5.67c0-2.09-1.88-3.08-4.03-3.08
+        		c-1.86,0-3.74,0.72-3.74,2.32c0,1.71,2.3,2.23,5.11,2.85c4.05,0.94,9.12,2.09,9.12,7.54c0,5.25-4.56,7.8-10.06,7.8
+        		C287.23,131.92,283.03,128.78,283.03,123.55z"/>
+        	<path class="st1" d="M306.47,107.11h5.74v24.33h-5.74V107.11z"/>
+        	<path class="st1" d="M335.06,111.99h-7.38v19.44h-5.74v-19.44h-7.38v-4.89h20.49V111.99z"/>
+        	<path class="st1" d="M350.62,126.82h-10.56l-1.82,4.61h-6.09l10.4-24.33h5.42l10.73,24.33h-6.23L350.62,126.82z M341.85,122.24
+        		h6.96l-3.5-8.7L341.85,122.24z"/>
+        	<path class="st1" d="M360.56,107.11h5.74v24.33h-5.74V107.11z"/>
+        	<path class="st1" d="M380.29,123.13h-3.68v8.3h-5.74v-24.33h10.71c5.31,0,9.28,3.36,9.28,8.05c0,3.18-1.9,5.78-4.84,7.08l5.87,9.2
+        		h-6.41L380.29,123.13z M376.61,118.27h4.59c2.4,0,3.84-1.32,3.84-3.15c0-1.82-1.43-3.15-3.84-3.15h-4.59V118.27z"/>
+        	<path class="st1" d="M410.76,126.54v4.9h-16.34v-24.33h15.93v4.86h-10.19v4.81h9.2v4.76h-9.2v5H410.76z"/>
+        	<path class="st1" d="M54.33,155.73c0,7.05-5.68,12.19-13.45,12.19H30.84V143.6h10.04C48.69,143.6,54.33,148.71,54.33,155.73z
+        		 M48.45,155.73c0-4.28-3.16-7.25-7.72-7.25h-4.15v14.56h4.15C45.29,163.04,48.45,159.99,48.45,155.73z"/>
+        	<path class="st1" d="M73.76,163.03v4.9H57.42V143.6h15.93v4.86H63.16v4.81h9.2v4.76h-9.2v5H73.76z"/>
+        	<path class="st1" d="M101.78,148.48H94.4v19.44h-5.74v-19.44h-7.38v-4.89h20.49V148.48z"/>
+        	<path class="st1" d="M120.46,163.03v4.9h-16.34V143.6h15.93v4.86h-10.19v4.81h9.2v4.76h-9.2v5H120.46z"/>
+        	<path class="st1" d="M121.84,155.79c0-7.24,5.91-12.72,13.7-12.72c6.46,0,11.61,3.92,12.84,9.69h-5.75
+        		c-1.09-2.87-3.74-4.67-7.08-4.67c-4.49,0-7.88,3.32-7.88,7.69s3.39,7.64,7.88,7.64c3.49,0,6.18-1.93,7.13-5.01h5.78
+        		c-1.2,6.02-6.35,10.04-12.92,10.04C127.75,168.45,121.84,162.98,121.84,155.79z"/>
+        	<path class="st1" d="M172.55,143.6v24.33h-5.74v-10.06h-9.98v10.06h-5.74V143.6h5.74v9.37h9.98v-9.37H172.55z"/>
+        	<path class="st1" d="M199.57,143.6v24.33h-4.8l-12.01-15.2v15.2h-5.63V143.6h5.18l11.63,14.84V143.6H199.57z"/>
+        	<path class="st1" d="M202.56,155.76c0-7.22,6.06-12.69,14.16-12.69c8.06,0,14.09,5.44,14.09,12.69c0,7.25-6.03,12.69-14.09,12.69
+        		C208.62,168.46,202.56,162.99,202.56,155.76z M224.99,155.76c0-4.41-3.55-7.73-8.28-7.73c-4.73,0-8.34,3.35-8.34,7.73
+        		c0,4.38,3.61,7.73,8.34,7.73C221.44,163.49,224.99,160.18,224.99,155.76z"/>
+        	<path class="st1" d="M249.72,163.04v4.88H233.8V143.6h5.74v19.44H249.72z"/>
+        	<path class="st1" d="M249.52,155.76c0-7.22,6.06-12.69,14.16-12.69c8.06,0,14.09,5.44,14.09,12.69c0,7.25-6.03,12.69-14.09,12.69
+        		C255.58,168.46,249.52,162.99,249.52,155.76z M271.96,155.76c0-4.41-3.55-7.73-8.28-7.73c-4.73,0-8.34,3.35-8.34,7.73
+        		c0,4.38,3.61,7.73,8.34,7.73C268.4,163.49,271.96,160.18,271.96,155.76z"/>
+        	<path class="st1" d="M306.52,155.22c-0.03,7.62-5.58,13.23-13.55,13.23c-7.81,0-13.74-5.37-13.74-12.67
+        		c0-7.29,5.78-12.72,13.63-12.72c6.59,0,12.06,3.83,13.3,9.27h-5.92c-1.14-2.61-3.94-4.24-7.28-4.24c-4.7,0-7.93,3.15-7.93,7.69
+        		c0,4.5,3.14,7.64,7.93,7.64c3.42,0,6.4-1.67,7.38-4.17h-7.95v-4.04H306.52z"/>
+        	<path class="st1" d="M309.46,143.6h5.74v24.33h-5.74V143.6z"/>
+        	<path class="st1" d="M336.12,163.03v4.9h-16.34V143.6h15.93v4.86h-10.19v4.81h9.2v4.76h-9.2v5H336.12z"/>
+        </g>
+        <g>
+        	<polygon class="st0" points="44.09,64.66 65.68,64.66 65.68,53.49 44.09,53.49 44.09,42.23 67.99,42.23 67.99,30.83 30.63,30.83 
+        		30.63,87.87 68.96,87.87 68.96,76.38 44.09,76.38 	"/>
+        	<path class="st0" d="M131.08,66.4V30.83H117.6v31.45l9.76,16.38C129.72,75.21,131.08,71.05,131.08,66.4z"/>
+        	<path class="st0" d="M93.16,30.83H79.68V66.4c0,4.95,1.51,9.34,4.16,12.91l9.32-15.92V30.83z"/>
+        	<polygon class="st0" points="139.49,30.83 139.49,42.28 156.79,42.28 156.79,87.87 170.25,87.87 170.25,42.28 187.54,42.28 
+        		187.54,30.83 	"/>
+        	<polygon class="st1" points="120.33,85.22 114.08,74.4 105.79,60.03 97.23,74.86 91.04,85.58 89.24,88.7 100.19,88.7 110.58,88.7 
+        		122.34,88.7 	"/>
+        </g>
+        </svg>
+      </div>
+      <div class="brand-divider"></div>
+      <div>
+        <h1>Suivi de tâches</h1>
+        <div class="subtitle">Vue annuelle — organisée mois par mois</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="year-input">
+        Année universitaire
+        <input type="number" id="yearStart" step="1">
+      </div>
+      <button class="save-btn" id="saveBtn">💾 Enregistrer</button>
+      <button class="export-btn" id="exportBtn">⬇ Exporter en PDF</button>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabsBar"></div>
+
+  <div class="nature-gear-row">
+    <button class="gear-link" data-manage="nature">⚙ Gérer les natures</button>
+    <button class="gear-link" data-manage="demandeur">⚙ Gérer les demandeurs</button>
+  </div>
+
+  <div class="task-list" id="taskList"></div>
+  <button class="add-row" id="addBtn">+ Ajouter une tâche</button>
+
+  <div class="footer-bar">
+    <div class="stats">
+      <div class="stat"><b id="statTotal">0</b> tâches (vue actuelle)</div>
+      <div class="stat"><b id="statDone">0</b> terminées</div>
+      <div class="stat"><b id="statBlocked">0</b> bloquées</div>
+      <div class="stat save-hint" id="saveHint"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="util-row">
+        <button class="util-link" id="exportJsonBtn">Exporter une copie (.json)</button>
+        <button class="util-link" id="importJsonBtn">Importer une copie</button>
+        <input type="file" id="importJsonInput" accept="application/json" style="display:none;">
+      </div>
+      <button class="reset-btn" id="resetBtn">Réinitialiser le tableau</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Gérer les valeurs</h3>
+    <div class="modal-sub">Renommez, supprimez ou ajoutez une valeur.</div>
+    <div id="modalList"></div>
+    <div class="modal-add">
+      <input type="text" id="modalNewValue" placeholder="Nouvelle valeur…">
+      <button id="modalAddBtn">Ajouter</button>
+    </div>
+    <button class="modal-close" id="modalCloseBtn">Fermer</button>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+const MONTHS = [
+  {v:8, label:'Septembre'}, {v:9, label:'Octobre'}, {v:10, label:'Novembre'}, {v:11, label:'Décembre'},
+  {v:0, label:'Janvier'}, {v:1, label:'Février'}, {v:2, label:'Mars'}, {v:3, label:'Avril'},
+  {v:4, label:'Mai'}, {v:5, label:'Juin'}, {v:6, label:'Juillet'}, {v:7, label:'Août'}
+];
+const MONTH_LABEL = Object.fromEntries(MONTHS.map(m => [m.v, m.label]));
+
+const PRIORITIES = [
+  {v:'basse', label:'Basse'}, {v:'moyenne', label:'Moyenne'}, {v:'haute', label:'Haute'}
+];
+const STATUSES = [
+  {v:'todo', label:'À faire'}, {v:'progress', label:'En cours'},
+  {v:'blocked', label:'Bloquée'}, {v:'done', label:'Terminée'}
+];
+
+const PILLAR_PALETTE = [
+  {bg:'#bcd4f0', ink:'#19283f'}, {bg:'#9dcb8f', ink:'#19283f'}, {bg:'#bfe2e0', ink:'#19283f'},
+  {bg:'#f5a266', ink:'#19283f'}, {bg:'#f1e967', ink:'#19283f'}
+];
+
+let tagLists = { nature: ['Graphisme', 'Web'], demandeur: ['ENEPS', 'BUT+', 'RSE'] };
+
+const now = new Date();
+const currentRealMonth = now.getMonth();
+let yearStart = currentRealMonth >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+let tasks = [
+  {id:1, text:'Relancer maquette page d\'accueil', nature:'Web', demandeur:'BUT+', prio:'haute', status:'progress', mois: currentRealMonth, debut: todayISO(), due:'', notes:''},
+  {id:2, text:'Préparer support de réunion', nature:'Graphisme', demandeur:'RSE', prio:'moyenne', status:'todo', mois: currentRealMonth, debut: todayISO(), due:'', notes:''},
+  {id:3, text:'Envoyer compte-rendu semaine dernière', nature:'', demandeur:'ENEPS', prio:'basse', status:'done', mois: currentRealMonth, debut: todayISO(), due:'', notes:''}
+];
+let nextId = 4;
+let activeMonth = 'all';
+
+// ⚠️ CONFIGURATION — à remplir avec vos identifiants Supabase (Settings > API)
+const SUPABASE_URL = 'https://ehxlamvxfojdfxwzxyac.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoeGxhbXZ4Zm9qZGZ4d3p4eWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NzM5MDMsImV4cCI6MjEwNDE0OTkwM30.wGeAF5ppzB-xb3Vte1KmpkY2ldZhoKrKnl56F74w9y4';
+const STATE_ID = 'main'; // identifiant fixe de la ligne (un seul enregistrement pour tout le tableau)
+
+const IS_CONFIGURED = !SUPABASE_URL.includes('VOTRE-PROJET') && !SUPABASE_ANON_KEY.includes('VOTRE_CLE');
+
+function supabaseHeaders(extra){
+  return Object.assign({
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+  }, extra || {});
+}
+
+const STORAGE_KEY = 'suivi-annuel-data';
+let saveTimer = null;
+
+async function loadState(){
+  if(!IS_CONFIGURED){
+    showConfigBanner();
+    document.getElementById('yearStart').value = yearStart;
+    renderTabs();
+    render();
+    return;
+  }
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.${STATE_ID}&select=data`, {
+      headers: supabaseHeaders()
+    });
+    const rows = await res.json();
+    if(Array.isArray(rows) && rows[0] && rows[0].data){
+      const data = rows[0].data;
+      if(data.tasks) tasks = data.tasks;
+      if(data.tagLists) tagLists = data.tagLists;
+      if(typeof data.nextId === 'number') nextId = data.nextId;
+      if(typeof data.yearStart === 'number') yearStart = data.yearStart;
+      if(data.activeMonth !== undefined) activeMonth = data.activeMonth;
+    }
+  }catch(err){
+    console.error('Chargement Supabase impossible :', err);
+  }
+  document.getElementById('yearStart').value = yearStart;
+  renderTabs();
+  render();
+}
+
+function showConfigBanner(){
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#fbe4d8;border:1px solid #e56843;color:#19283f;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:.82rem;';
+  banner.innerHTML = '⚠️ Supabase non configuré — vos données ne seront pas sauvegardées tant que <code>SUPABASE_URL</code> et <code>SUPABASE_ANON_KEY</code> ne sont pas renseignés dans le fichier.';
+  document.querySelector('.wrap').insertBefore(banner, document.querySelector('.tabs'));
+}
+
+async function doSave(){
+  const hint = document.getElementById('saveHint');
+  if(!IS_CONFIGURED){
+    hint.textContent = 'Supabase non configuré';
+    return false;
+  }
+  try{
+    const payload = {id: STATE_ID, data: {tasks, tagLists, nextId, yearStart, activeMonth}, updated_at: new Date().toISOString()};
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
+      method: 'POST',
+      headers: supabaseHeaders({'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'}),
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('Échec de la sauvegarde (' + res.status + ')');
+    hint.textContent = 'Enregistré';
+    setTimeout(() => { hint.textContent = ''; }, 1500);
+    return true;
+  }catch(err){
+    console.error('Sauvegarde Supabase impossible :', err);
+    hint.textContent = 'Enregistrement impossible';
+    return false;
+  }
+}
+
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 250);
+}
+
+async function forceSave(){
+  clearTimeout(saveTimer);
+  const btn = document.getElementById('saveBtn');
+  const ok = await doSave();
+  if(ok){
+    btn.textContent = '✓ Enregistré';
+    btn.classList.add('just-saved');
+  } else {
+    btn.textContent = '⚠ Échec';
+  }
+  setTimeout(() => {
+    btn.textContent = '💾 Enregistrer';
+    btn.classList.remove('just-saved');
+  }, 1800);
+}
+document.getElementById('saveBtn').onclick = forceSave;
+
+function exportJson(){
+  const data = {tasks, tagLists, nextId, yearStart, activeMonth};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `suivi-taches-eut-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('exportJsonBtn').onclick = exportJson;
+
+document.getElementById('importJsonBtn').onclick = () => document.getElementById('importJsonInput').click();
+document.getElementById('importJsonInput').onchange = e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!confirm('Remplacer les données actuelles par celles de ce fichier ?')) return;
+      if(data.tasks) tasks = data.tasks;
+      if(data.tagLists) tagLists = data.tagLists;
+      if(typeof data.nextId === 'number') nextId = data.nextId;
+      if(typeof data.yearStart === 'number'){ yearStart = data.yearStart; document.getElementById('yearStart').value = yearStart; }
+      if(data.activeMonth !== undefined) activeMonth = data.activeMonth;
+      renderTabs(); render(); saveState();
+    }catch(err){
+      alert('Fichier invalide.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+function renderTabs(){
+  const bar = document.getElementById('tabsBar');
+  bar.innerHTML = '';
+  const allTab = document.createElement('button');
+  allTab.className = 'tab all' + (activeMonth === 'all' ? ' active' : '');
+  allTab.innerHTML = `Toutes <span class="badge">${tasks.length}</span>`;
+  allTab.onclick = () => { activeMonth = 'all'; renderTabs(); render(); saveState(); };
+  bar.appendChild(allTab);
+  MONTHS.forEach(m => {
+    const count = tasks.filter(t => t.mois === m.v).length;
+    const tab = document.createElement('button');
+    tab.className = 'tab' + (activeMonth === m.v ? ' active' : '');
+    tab.innerHTML = `${m.label} <span class="badge">${count}</span>`;
+    tab.onclick = () => { activeMonth = m.v; renderTabs(); render(); saveState(); };
+    bar.appendChild(tab);
+  });
+}
+
+function visibleTasks(){ return activeMonth === 'all' ? tasks : tasks.filter(t => t.mois === activeMonth); }
+
+function render(){
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  const vis = visibleTasks();
+  if(vis.length === 0){
+    list.innerHTML = '<div class="empty-hint">Aucune tâche pour cette période — cliquez sur « Ajouter une tâche » pour commencer.</div>';
+  } else {
+    vis.forEach(t => list.appendChild(buildCard(t)));
+  }
+  updateStats(vis);
+}
+
+function pillarColorFor(field, value){
+  if(!value) return null;
+  const idx = tagLists[field].indexOf(value);
+  if(idx === -1) return null;
+  return PILLAR_PALETTE[idx % PILLAR_PALETTE.length];
+}
+
+function buildTagSelect(t, field){
+  const sel = document.createElement('select');
+  const optEmpty = document.createElement('option');
+  optEmpty.value = ''; optEmpty.textContent = '—';
+  if(!t[field]) optEmpty.selected = true;
+  sel.appendChild(optEmpty);
+  tagLists[field].forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    if(t[field] === v) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const color = pillarColorFor(field, t[field]);
+  if(color){ sel.style.backgroundColor = color.bg; sel.style.color = color.ink; }
+  else { sel.className = 'tag-empty'; }
+  sel.onchange = e => { t[field] = e.target.value; render(); saveState(); };
+  return sel;
+}
+
+function field(labelText, control){
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+  const lab = document.createElement('span');
+  lab.className = 'field-label';
+  lab.textContent = labelText;
+  wrap.appendChild(lab);
+  wrap.appendChild(control);
+  return wrap;
+}
+
+function buildCard(t){
+  const card = document.createElement('div');
+  card.className = 'task-card' + (t.status === 'done' ? ' done' : '');
+
+  // top row: checkbox, text, priority, delete
+  const top = document.createElement('div');
+  top.className = 'task-top';
+
+  const cb = document.createElement('div');
+  cb.className = 'checkbox' + (t.status === 'done' ? ' checked' : '');
+  cb.textContent = t.status === 'done' ? '✓' : '';
+  cb.onclick = () => { t.status = t.status === 'done' ? 'todo' : 'done'; render(); renderTabs(); saveState(); };
+  top.appendChild(cb);
+
+  const textWrap = document.createElement('div');
+  textWrap.className = 'task-text-wrap';
+  const inpText = document.createElement('input');
+  inpText.type = 'text';
+  inpText.className = 'task-text';
+  inpText.value = t.text;
+  inpText.placeholder = 'Décrire la tâche…';
+  inpText.oninput = e => { t.text = e.target.value; saveState(); };
+  textWrap.appendChild(inpText);
+  top.appendChild(textWrap);
+
+  const selPrio = document.createElement('select');
+  selPrio.className = 'p-' + t.prio;
+  PRIORITIES.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.v; opt.textContent = p.label;
+    if(p.v === t.prio) opt.selected = true;
+    selPrio.appendChild(opt);
+  });
+  selPrio.onchange = e => { t.prio = e.target.value; render(); saveState(); };
+  top.appendChild(selPrio);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Supprimer';
+  delBtn.onclick = () => { tasks = tasks.filter(x => x.id !== t.id); renderTabs(); render(); saveState(); };
+  top.appendChild(delBtn);
+
+  card.appendChild(top);
+
+  // meta row
+  const meta = document.createElement('div');
+  meta.className = 'task-meta';
+
+  meta.appendChild(field('Nature', buildTagSelect(t, 'nature')));
+  meta.appendChild(field('Demandeur', buildTagSelect(t, 'demandeur')));
+
+  const selStatus = document.createElement('select');
+  selStatus.className = 'status-' + t.status;
+  STATUSES.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.v; opt.textContent = s.label;
+    if(s.v === t.status) opt.selected = true;
+    selStatus.appendChild(opt);
+  });
+  selStatus.onchange = e => { t.status = e.target.value; render(); renderTabs(); saveState(); };
+  meta.appendChild(field('Statut', selStatus));
+
+  const selMonth = document.createElement('select');
+  selMonth.className = 'month-select';
+  MONTHS.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.v; opt.textContent = m.label;
+    if(t.mois === m.v) opt.selected = true;
+    selMonth.appendChild(opt);
+  });
+  selMonth.onchange = e => { t.mois = parseInt(e.target.value, 10); renderTabs(); render(); saveState(); };
+  meta.appendChild(field('Mois', selMonth));
+
+  const inpDebut = document.createElement('input');
+  inpDebut.type = 'date';
+  inpDebut.value = t.debut || '';
+  inpDebut.oninput = e => {
+    t.debut = e.target.value;
+    if(e.target.value){ t.mois = new Date(e.target.value + 'T00:00:00').getMonth(); }
+    renderTabs(); render(); saveState();
+  };
+  const fDebut = field('Début', inpDebut);
+  fDebut.classList.add('date-field');
+  meta.appendChild(fDebut);
+
+  const inpDue = document.createElement('input');
+  inpDue.type = 'date';
+  inpDue.value = t.due;
+  inpDue.oninput = e => { t.due = e.target.value; saveState(); };
+  const fDue = field('Échéance', inpDue);
+  fDue.classList.add('date-field');
+  meta.appendChild(fDue);
+
+  card.appendChild(meta);
+
+  // notes row
+  const notesWrap = document.createElement('div');
+  notesWrap.className = 'task-notes';
+  const inpNotes = document.createElement('input');
+  inpNotes.type = 'text';
+  inpNotes.value = t.notes;
+  inpNotes.placeholder = 'Notes…';
+  inpNotes.oninput = e => { t.notes = e.target.value; saveState(); };
+  notesWrap.appendChild(inpNotes);
+  card.appendChild(notesWrap);
+
+  return card;
+}
+
+function updateStats(vis){
+  document.getElementById('statTotal').textContent = vis.length;
+  document.getElementById('statDone').textContent = vis.filter(t => t.status === 'done').length;
+  document.getElementById('statBlocked').textContent = vis.filter(t => t.status === 'blocked').length;
+}
+
+document.getElementById('addBtn').onclick = () => {
+  const mois = activeMonth === 'all' ? currentRealMonth : activeMonth;
+  tasks.push({id: nextId++, text:'', nature:'', demandeur:'', prio:'moyenne', status:'todo', mois: mois, debut: todayISO(), due:'', notes:''});
+  renderTabs(); render(); saveState();
+  const inputs = document.querySelectorAll('.task-text');
+  if(inputs.length) inputs[inputs.length - 1].focus();
+};
+
+document.getElementById('resetBtn').onclick = () => {
+  if(confirm('Vider entièrement le tableau (toute l\'année) ?')){
+    tasks = []; nextId = 1; renderTabs(); render(); saveState();
+  }
+};
+
+document.getElementById('yearStart').onchange = e => {
+  yearStart = parseInt(e.target.value, 10) || yearStart;
+  saveState();
+};
+
+let currentField = null;
+
+function openModal(f){
+  currentField = f;
+  document.getElementById('modalTitle').textContent = f === 'nature' ? 'Gérer : Nature de la tâche' : 'Gérer : Demandeur';
+  renderModalList();
+  document.getElementById('modalNewValue').value = '';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); currentField = null; }
+
+function renderModalList(){
+  const list = document.getElementById('modalList');
+  list.innerHTML = '';
+  tagLists[currentField].forEach((val, idx) => {
+    const row = document.createElement('div');
+    row.className = 'tag-row';
+    const color = PILLAR_PALETTE[idx % PILLAR_PALETTE.length];
+    const swatch = document.createElement('span');
+    swatch.style.cssText = `display:inline-block;width:14px;height:14px;border-radius:4px;background:${color.bg};flex-shrink:0;`;
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = val;
+    inp.onchange = e => {
+      const newVal = e.target.value.trim();
+      if(!newVal) { e.target.value = val; return; }
+      const oldVal = tagLists[currentField][idx];
+      tagLists[currentField][idx] = newVal;
+      tasks.forEach(t => { if(t[currentField] === oldVal) t[currentField] = newVal; });
+      render(); saveState();
+    };
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.title = 'Supprimer cette valeur';
+    delBtn.onclick = () => {
+      const oldVal = tagLists[currentField][idx];
+      tagLists[currentField].splice(idx, 1);
+      tasks.forEach(t => { if(t[currentField] === oldVal) t[currentField] = ''; });
+      renderModalList(); render(); saveState();
+    };
+    row.appendChild(swatch); row.appendChild(inp); row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+
+document.querySelectorAll('.gear-link').forEach(btn => { btn.onclick = () => openModal(btn.dataset.manage); });
+document.getElementById('modalCloseBtn').onclick = closeModal;
+document.getElementById('modalOverlay').onclick = e => { if(e.target.id === 'modalOverlay') closeModal(); };
+document.getElementById('modalAddBtn').onclick = () => {
+  const inp = document.getElementById('modalNewValue');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(!tagLists[currentField].includes(val)) tagLists[currentField].push(val);
+  inp.value = ''; renderModalList(); saveState();
+};
+document.getElementById('modalNewValue').addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('modalAddBtn').click(); });
+
+const STATUS_LABEL = Object.fromEntries(STATUSES.map(s => [s.v, s.label]));
+const PRIO_LABEL = Object.fromEntries(PRIORITIES.map(p => [p.v, p.label]));
+
+function yearForMonth(m){ return m >= 8 ? yearStart : yearStart + 1; }
+
+function buildPrintReport(){
+  const vis = visibleTasks();
+  const periodLabel = activeMonth === 'all'
+    ? `Année universitaire ${yearStart}-${yearStart + 1}`
+    : `${MONTH_LABEL[activeMonth]} ${yearForMonth(activeMonth)}`;
+  const generated = new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+
+  let rows = vis.map(t => `
+    <tr class="${t.status === 'done' ? 'p-done' : ''}">
+      <td>${escapeHtml(t.text) || '—'}</td>
+      <td>${escapeHtml(t.nature) || '—'}</td>
+      <td>${escapeHtml(t.demandeur) || '—'}</td>
+      <td>${PRIO_LABEL[t.prio] || '—'}</td>
+      <td>${STATUS_LABEL[t.status] || '—'}</td>
+      <td>${MONTH_LABEL[t.mois] || '—'}</td>
+      <td>${t.debut ? new Date(t.debut + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</td>
+      <td>${t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</td>
+      <td>${escapeHtml(t.notes) || '—'}</td>
+    </tr>
+  `).join('');
+
+  if(vis.length === 0){ rows = '<tr><td colspan="9">Aucune tâche.</td></tr>'; }
+
+  const done = vis.filter(t => t.status === 'done').length;
+  const blocked = vis.filter(t => t.status === 'blocked').length;
+
+  document.getElementById('printArea').innerHTML = `
+    <h1>EUT — État des lieux des tâches</h1>
+    <div class="p-sub">${periodLabel} — édité le ${generated}</div>
+    <table>
+      <thead>
+        <tr><th>Tâche</th><th>Nature</th><th>Demandeur</th><th>Priorité</th><th>Statut</th><th>Mois</th><th>Début</th><th>Échéance</th><th>Notes</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="p-stats">${vis.length} tâche(s) — ${done} terminée(s) — ${blocked} bloquée(s)</div>
+  `;
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('exportBtn').onclick = () => { buildPrintReport(); window.print(); };
+
+loadState();
+</script>
+</body>
+</html>
