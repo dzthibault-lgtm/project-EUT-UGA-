@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Suivi de tâches : Communication — EUT-UGA</title>
+<title>Suivi de tâches — EUT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
@@ -299,6 +299,35 @@
   }
   .done-toggle:hover{color:var(--accent-dark);border-color:var(--accent-dark);}
 
+  .view-toggle{display:flex;gap:6px;margin-bottom:14px;}
+  .view-btn{
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    border-radius:8px;padding:6px 14px;font-size:.76rem;font-weight:700;cursor:pointer;
+    font-family:'Poppins', Verdana, sans-serif;text-transform:uppercase;letter-spacing:.02em;
+  }
+  .view-btn.active{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff;}
+  .view-btn:hover:not(.active){border-color:var(--accent-dark);color:var(--accent-dark);}
+
+  .kanban-board{display:none;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;}
+  .kanban-col{
+    flex:0 0 260px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+    display:flex;flex-direction:column;max-height:calc(100vh - 260px);
+  }
+  .kanban-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px;}
+  .kanban-col-header{
+    padding:10px 12px;font-family:'Poppins',sans-serif;font-weight:700;font-size:.78rem;
+    text-transform:uppercase;letter-spacing:.02em;border-bottom:1px solid var(--line);
+    border-radius:10px 10px 0 0;
+  }
+  .kanban-col-header.status-todo{background:var(--neutral-soft);color:var(--ink);}
+  .kanban-col-header.status-progress{background:var(--warn-soft);color:var(--warn);}
+  .kanban-col-header.status-blocked{background:var(--danger-soft);color:var(--danger);}
+  .kanban-col-header.status-done{background:var(--ok-soft);color:var(--ok);}
+  .kanban-col-body{padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:40px;}
+  .kanban-card{cursor:grab;}
+  .kanban-card.dragging{opacity:.4;}
+  .kanban-empty{color:var(--muted);font-size:.76rem;text-align:center;padding:10px 4px;}
+
   .access-gate{
     position:fixed;inset:0;background:var(--bg);z-index:999;
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -370,6 +399,8 @@
     .footer-bar{flex-direction:column;align-items:flex-start;gap:10px;}
     .util-row{gap:10px;}
     .reset-btn{width:100%;}
+    .kanban-board{flex-direction:column;overflow-x:visible;}
+    .kanban-col{flex:1 1 auto;max-height:none;}
   }
 </style>
 </head>
@@ -512,7 +543,13 @@
     <button class="gear-link" data-manage="demandeur">⚙ Gérer les demandeurs</button>
   </div>
 
+  <div class="view-toggle">
+    <button class="view-btn active" id="viewListBtn">☰ Liste</button>
+    <button class="view-btn" id="viewKanbanBtn">▦ Colonnes par statut</button>
+  </div>
+
   <div class="task-list" id="taskList"></div>
+  <div class="kanban-board" id="kanbanBoard"></div>
   <button class="add-row" id="addBtn">+ Ajouter une tâche</button>
 
   <div class="footer-bar">
@@ -598,6 +635,7 @@ let filterDemandeur = '';
 let filterStatus = '';
 let quickFilter = null; // null | 'upcoming' | 'overdue'
 let doneCollapsedOpen = false;
+let viewMode = 'list'; // 'list' | 'kanban'
 const DONE_COLLAPSE_DAYS = 7;
 
 // ⚠️ CONFIGURATION — à remplir avec vos identifiants Supabase (Settings > API)
@@ -660,6 +698,7 @@ async function loadState(){
       if(typeof data.nextId === 'number') nextId = data.nextId;
       if(typeof data.yearStart === 'number') yearStart = data.yearStart;
       if(data.activeMonth !== undefined) activeMonth = data.activeMonth;
+      if(data.viewMode === 'list' || data.viewMode === 'kanban') viewMode = data.viewMode;
     }
   }catch(err){
     console.error('Chargement Supabase impossible :', err);
@@ -670,6 +709,7 @@ async function loadState(){
     if(typeof t.subtasksOpen !== 'boolean') t.subtasksOpen = false;
   });
   renderYearOptions();
+  updateViewButtons();
   renderTabs();
   render();
 }
@@ -688,7 +728,7 @@ async function doSave(){
     return false;
   }
   try{
-    const payload = {id: STATE_ID, data: {tasks, tagLists, nextId, yearStart, activeMonth}, updated_at: new Date().toISOString()};
+    const payload = {id: STATE_ID, data: {tasks, tagLists, nextId, yearStart, activeMonth, viewMode}, updated_at: new Date().toISOString()};
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: 'POST',
       headers: supabaseHeaders({'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'}),
@@ -728,7 +768,7 @@ async function forceSave(){
 document.getElementById('saveBtn').onclick = forceSave;
 
 function exportJson(){
-  const data = {tasks, tagLists, nextId, yearStart, activeMonth};
+  const data = {tasks, tagLists, nextId, yearStart, activeMonth, viewMode};
   const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -755,12 +795,14 @@ document.getElementById('importJsonInput').onchange = e => {
       if(typeof data.nextId === 'number') nextId = data.nextId;
       if(typeof data.yearStart === 'number'){ yearStart = data.yearStart; }
       if(data.activeMonth !== undefined) activeMonth = data.activeMonth;
+      if(data.viewMode === 'list' || data.viewMode === 'kanban') viewMode = data.viewMode;
       tasks.forEach(t => {
         if(typeof t.annee !== 'number'){ t.annee = academicYearOf(t.debut) ?? yearStart; }
         if(!Array.isArray(t.subtasks)) t.subtasks = [];
         if(typeof t.subtasksOpen !== 'boolean') t.subtasksOpen = false;
       });
       renderYearOptions();
+      updateViewButtons();
       renderTabs(); render(); saveState();
     }catch(err){
       alert('Fichier invalide.');
@@ -920,38 +962,107 @@ document.getElementById('filtersResetBtn').onclick = () => {
   render();
 };
 
+function updateViewButtons(){
+  document.getElementById('viewListBtn').classList.toggle('active', viewMode === 'list');
+  document.getElementById('viewKanbanBtn').classList.toggle('active', viewMode === 'kanban');
+}
+document.getElementById('viewListBtn').onclick = () => { viewMode = 'list'; updateViewButtons(); render(); saveState(); };
+document.getElementById('viewKanbanBtn').onclick = () => { viewMode = 'kanban'; updateViewButtons(); render(); saveState(); };
+
+function renderKanban(vis){
+  const board = document.getElementById('kanbanBoard');
+  board.innerHTML = '';
+  STATUSES.forEach(s => {
+    const col = document.createElement('div');
+    col.className = 'kanban-col';
+
+    const header = document.createElement('div');
+    header.className = 'kanban-col-header status-' + s.v;
+    const colTasks = vis.filter(t => t.status === s.v);
+    header.textContent = `${s.label} (${colTasks.length})`;
+    col.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'kanban-col-body';
+    if(colTasks.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'kanban-empty';
+      empty.textContent = 'Aucune tâche';
+      body.appendChild(empty);
+    } else {
+      colTasks.forEach(t => {
+        const card = buildCard(t);
+        card.classList.add('kanban-card');
+        card.draggable = true;
+        card.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', String(t.id));
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        body.appendChild(card);
+      });
+    }
+    col.appendChild(body);
+
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = parseFloat(e.dataTransfer.getData('text/plain'));
+      const task = tasks.find(x => x.id === id);
+      if(task && task.status !== s.v){
+        setStatus(task, s.v);
+        renderTabs(); render(); saveState();
+      }
+    });
+
+    board.appendChild(col);
+  });
+}
+
 function render(){
   renderYearOptions();
   renderFilterOptions();
   updateBanner();
-  const list = document.getElementById('taskList');
-  list.innerHTML = '';
   const vis = visibleTasks();
-  if(vis.length === 0){
-    list.innerHTML = '<div class="empty-hint">Aucune tâche pour cette période — cliquez sur « Ajouter une tâche » pour commencer.</div>';
+  const list = document.getElementById('taskList');
+  const board = document.getElementById('kanbanBoard');
+
+  if(viewMode === 'kanban'){
+    list.style.display = 'none';
+    board.style.display = 'flex';
+    renderKanban(vis);
   } else {
-    const recent = [];
-    const oldDone = [];
-    vis.forEach(t => {
-      if(t.status === 'done' && t.completedAt && daysSince(t.completedAt) > DONE_COLLAPSE_DAYS){
-        oldDone.push(t);
-      } else {
-        recent.push(t);
-      }
-    });
-    if(recent.length === 0 && oldDone.length > 0){
-      list.innerHTML = '<div class="empty-hint">Toutes les tâches de cette période sont terminées depuis plus d\'une semaine.</div>';
+    board.style.display = 'none';
+    list.style.display = 'flex';
+    list.innerHTML = '';
+    if(vis.length === 0){
+      list.innerHTML = '<div class="empty-hint">Aucune tâche pour cette période — cliquez sur « Ajouter une tâche » pour commencer.</div>';
     } else {
-      recent.forEach(t => list.appendChild(buildCard(t)));
-    }
-    if(oldDone.length > 0){
-      const toggle = document.createElement('button');
-      toggle.className = 'done-toggle';
-      toggle.textContent = (doneCollapsedOpen ? '▾ ' : '▸ ') + `Terminées il y a plus de ${DONE_COLLAPSE_DAYS} jours (${oldDone.length})`;
-      toggle.onclick = () => { doneCollapsedOpen = !doneCollapsedOpen; render(); };
-      list.appendChild(toggle);
-      if(doneCollapsedOpen){
-        oldDone.forEach(t => list.appendChild(buildCard(t)));
+      const recent = [];
+      const oldDone = [];
+      vis.forEach(t => {
+        if(t.status === 'done' && t.completedAt && daysSince(t.completedAt) > DONE_COLLAPSE_DAYS){
+          oldDone.push(t);
+        } else {
+          recent.push(t);
+        }
+      });
+      if(recent.length === 0 && oldDone.length > 0){
+        list.innerHTML = '<div class="empty-hint">Toutes les tâches de cette période sont terminées depuis plus d\'une semaine.</div>';
+      } else {
+        recent.forEach(t => list.appendChild(buildCard(t)));
+      }
+      if(oldDone.length > 0){
+        const toggle = document.createElement('button');
+        toggle.className = 'done-toggle';
+        toggle.textContent = (doneCollapsedOpen ? '▾ ' : '▸ ') + `Terminées il y a plus de ${DONE_COLLAPSE_DAYS} jours (${oldDone.length})`;
+        toggle.onclick = () => { doneCollapsedOpen = !doneCollapsedOpen; render(); };
+        list.appendChild(toggle);
+        if(doneCollapsedOpen){
+          oldDone.forEach(t => list.appendChild(buildCard(t)));
+        }
       }
     }
   }
