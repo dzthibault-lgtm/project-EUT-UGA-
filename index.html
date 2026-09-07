@@ -39,7 +39,8 @@
   h1, .brand-word, .export-btn, .tab, .add-row, .field-label{
     font-family:'Poppins', Verdana, sans-serif;
   }
-  .wrap{max-width:900px;margin:0 auto;}
+  .wrap{max-width:900px;margin:0 auto;transition:max-width .15s ease;}
+  .wrap.kanban-wide{max-width:1600px;}
   header{
     display:flex;justify-content:space-between;align-items:flex-end;
     margin-bottom:16px;flex-wrap:wrap;gap:16px;
@@ -310,7 +311,7 @@
 
   .kanban-board{display:none;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;}
   .kanban-col{
-    flex:0 0 260px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+    flex:1 1 260px;min-width:240px;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:10px;
     display:flex;flex-direction:column;max-height:calc(100vh - 260px);
   }
   .kanban-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px;}
@@ -965,6 +966,7 @@ document.getElementById('filtersResetBtn').onclick = () => {
 function updateViewButtons(){
   document.getElementById('viewListBtn').classList.toggle('active', viewMode === 'list');
   document.getElementById('viewKanbanBtn').classList.toggle('active', viewMode === 'kanban');
+  document.querySelector('.wrap').classList.toggle('kanban-wide', viewMode === 'kanban');
 }
 document.getElementById('viewListBtn').onclick = () => { viewMode = 'list'; updateViewButtons(); render(); saveState(); };
 document.getElementById('viewKanbanBtn').onclick = () => { viewMode = 'kanban'; updateViewButtons(); render(); saveState(); };
