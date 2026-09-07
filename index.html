@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Suivi de tâches — EUT</title>
+<title>Suivi de tâches : Communication — EUT-UGA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
@@ -162,6 +162,35 @@
     font-size:.82rem;color:var(--muted);border:1px dashed var(--line);border-radius:6px;
   }
   .task-notes input:focus{color:var(--ink);}
+
+  .subtasks-wrap{margin-top:6px;}
+  .subtasks-toggle{
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:.76rem;
+    font-weight:700;padding:2px 2px;font-family:'Poppins', Verdana, sans-serif;
+    text-transform:uppercase;letter-spacing:.02em;
+  }
+  .subtasks-toggle:hover{color:var(--accent-dark);}
+  .subtasks-list{
+    margin-top:6px;padding-left:4px;border-left:2px solid var(--line);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .subtask-row{display:flex;align-items:center;gap:8px;padding-left:8px;}
+  .sub-checkbox{width:15px;height:15px;font-size:.6rem;}
+  .subtask-text{
+    flex:1;font-size:.82rem;border:1px solid transparent;background:transparent;
+    padding:3px 5px;border-radius:5px;color:var(--ink);
+  }
+  .subtask-text:hover{background:var(--neutral-soft);}
+  .subtask-text:focus{outline:none;border-color:var(--accent-dark);background:#fff;}
+  .subtask-text.done{text-decoration:line-through;color:var(--muted);}
+  .sub-del{font-size:.85rem;opacity:.4;padding:2px;}
+  .sub-del:hover{opacity:1;}
+  .subtask-add{
+    align-self:flex-start;margin-left:8px;margin-top:2px;background:none;border:none;
+    color:var(--accent-dark);cursor:pointer;font-size:.78rem;font-weight:700;
+    padding:3px 4px;font-family:'Poppins', Verdana, sans-serif;
+  }
+  .subtask-add:hover{color:var(--accent);}
 
   .add-row{
     display:flex;align-items:center;gap:8px;color:var(--accent-dark);
@@ -554,10 +583,12 @@ function academicYearOf(dateStr){
   return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
 }
 
+function genSubId(){ return 'st' + Date.now() + Math.floor(Math.random() * 10000); }
+
 let tasks = [
-  {id:1, text:'Relancer maquette page d\'accueil', nature:'Web', demandeur:'BUT+', prio:'haute', status:'progress', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null},
-  {id:2, text:'Préparer support de réunion', nature:'Graphisme', demandeur:'RSE', prio:'moyenne', status:'todo', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null},
-  {id:3, text:'Envoyer compte-rendu semaine dernière', nature:'', demandeur:'ENEPS', prio:'basse', status:'done', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt: todayISO()}
+  {id:1, text:'Relancer maquette page d\'accueil', nature:'Web', demandeur:'BUT+', prio:'haute', status:'progress', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null, subtasks:[], subtasksOpen:false},
+  {id:2, text:'Préparer support de réunion', nature:'Graphisme', demandeur:'RSE', prio:'moyenne', status:'todo', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null, subtasks:[], subtasksOpen:false},
+  {id:3, text:'Envoyer compte-rendu semaine dernière', nature:'', demandeur:'ENEPS', prio:'basse', status:'done', mois: currentRealMonth, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt: todayISO(), subtasks:[], subtasksOpen:false}
 ];
 let nextId = 4;
 let activeMonth = 'all';
@@ -635,6 +666,8 @@ async function loadState(){
   }
   tasks.forEach(t => {
     if(typeof t.annee !== 'number'){ t.annee = academicYearOf(t.debut) ?? yearStart; }
+    if(!Array.isArray(t.subtasks)) t.subtasks = [];
+    if(typeof t.subtasksOpen !== 'boolean') t.subtasksOpen = false;
   });
   renderYearOptions();
   renderTabs();
@@ -724,6 +757,8 @@ document.getElementById('importJsonInput').onchange = e => {
       if(data.activeMonth !== undefined) activeMonth = data.activeMonth;
       tasks.forEach(t => {
         if(typeof t.annee !== 'number'){ t.annee = academicYearOf(t.debut) ?? yearStart; }
+        if(!Array.isArray(t.subtasks)) t.subtasks = [];
+        if(typeof t.subtasksOpen !== 'boolean') t.subtasksOpen = false;
       });
       renderYearOptions();
       renderTabs(); render(); saveState();
@@ -1012,7 +1047,8 @@ function buildCard(t){
   dupBtn.textContent = '⧉';
   dupBtn.title = 'Dupliquer cette tâche';
   dupBtn.onclick = () => {
-    const copy = Object.assign({}, t, {id: nextId++, status:'todo', completedAt:null, debut: todayISO(), due:''});
+    const copiedSubtasks = (t.subtasks || []).map(s => ({id: genSubId(), text: s.text, done:false}));
+    const copy = Object.assign({}, t, {id: nextId++, status:'todo', completedAt:null, debut: todayISO(), due:'', subtasks: copiedSubtasks, subtasksOpen: t.subtasksOpen});
     const idx = tasks.indexOf(t);
     tasks.splice(idx + 1, 0, copy);
     renderTabs(); render(); saveState();
@@ -1081,6 +1117,76 @@ function buildCard(t){
 
   card.appendChild(meta);
 
+  // subtasks (checklist)
+  const subWrap = document.createElement('div');
+  subWrap.className = 'subtasks-wrap';
+  if(!Array.isArray(t.subtasks)) t.subtasks = [];
+
+  const subToggle = document.createElement('button');
+  subToggle.className = 'subtasks-toggle';
+  const subDone = t.subtasks.filter(s => s.done).length;
+  const subTotal = t.subtasks.length;
+  subToggle.textContent = subTotal > 0
+    ? `${t.subtasksOpen ? '▾' : '▸'} Sous-tâches (${subDone}/${subTotal})`
+    : `${t.subtasksOpen ? '▾' : '▸'} Sous-tâches`;
+  subToggle.onclick = () => { t.subtasksOpen = !t.subtasksOpen; render(); saveState(); };
+  subWrap.appendChild(subToggle);
+
+  if(t.subtasksOpen){
+    const subList = document.createElement('div');
+    subList.className = 'subtasks-list';
+
+    t.subtasks.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'subtask-row';
+
+      const subCb = document.createElement('div');
+      subCb.className = 'checkbox sub-checkbox' + (s.done ? ' checked' : '');
+      subCb.textContent = s.done ? '✓' : '';
+      subCb.onclick = () => { s.done = !s.done; render(); saveState(); };
+      row.appendChild(subCb);
+
+      const subInp = document.createElement('input');
+      subInp.type = 'text';
+      subInp.className = 'subtask-text' + (s.done ? ' done' : '');
+      subInp.value = s.text;
+      subInp.placeholder = 'Décrire la sous-tâche…';
+      subInp.setAttribute('data-subtask-id', s.id);
+      subInp.oninput = e => { s.text = e.target.value; saveState(); };
+      row.appendChild(subInp);
+
+      const subDel = document.createElement('button');
+      subDel.className = 'del-btn sub-del';
+      subDel.textContent = '✕';
+      subDel.title = 'Supprimer cette sous-tâche';
+      subDel.onclick = () => {
+        t.subtasks = t.subtasks.filter(x => x.id !== s.id);
+        render(); saveState();
+      };
+      row.appendChild(subDel);
+
+      subList.appendChild(row);
+    });
+
+    const subAddBtn = document.createElement('button');
+    subAddBtn.className = 'subtask-add';
+    subAddBtn.textContent = '+ Ajouter une sous-tâche';
+    subAddBtn.onclick = () => {
+      const newId = genSubId();
+      t.subtasks.push({id: newId, text:'', done:false});
+      t.subtasksOpen = true;
+      render(); saveState();
+      const newInp = document.querySelector(`[data-subtask-id="${newId}"]`);
+      if(newInp) newInp.focus();
+    };
+    subList.appendChild(subAddBtn);
+
+    subWrap.appendChild(subList);
+  }
+
+  card.appendChild(subWrap);
+
+  // notes row
   const notesWrap = document.createElement('div');
   notesWrap.className = 'task-notes';
   const inpNotes = document.createElement('input');
@@ -1102,7 +1208,7 @@ function updateStats(vis){
 
 document.getElementById('addBtn').onclick = () => {
   const mois = activeMonth === 'all' ? currentRealMonth : activeMonth;
-  tasks.push({id: nextId++, text:'', nature:'', demandeur:'', prio:'moyenne', status:'todo', mois: mois, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null});
+  tasks.push({id: nextId++, text:'', nature:'', demandeur:'', prio:'moyenne', status:'todo', mois: mois, annee: yearStart, debut: todayISO(), due:'', notes:'', completedAt:null, subtasks:[], subtasksOpen:false});
   renderTabs(); render(); saveState();
   const inputs = document.querySelectorAll('.task-text');
   if(inputs.length) inputs[inputs.length - 1].focus();
@@ -1214,7 +1320,7 @@ function buildPrintReport(){
       <td>${MONTH_LABEL[t.mois] || '—'}</td>
       <td>${t.debut ? new Date(t.debut + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</td>
       <td>${t.due ? new Date(t.due + 'T00:00:00').toLocaleDateString('fr-FR') : '—'}</td>
-      <td>${escapeHtml(t.notes) || '—'}</td>
+      <td>${escapeHtml(t.notes) || '—'}${(t.subtasks && t.subtasks.length) ? ' [Sous-tâches : ' + t.subtasks.filter(s => s.done).length + '/' + t.subtasks.length + ']' : ''}</td>
     </tr>
   `).join('');
 
