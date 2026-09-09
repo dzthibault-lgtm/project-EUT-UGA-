@@ -329,6 +329,21 @@
   .kanban-card.dragging{opacity:.4;}
   .kanban-empty{color:var(--muted);font-size:.76rem;text-align:center;padding:10px 4px;}
 
+  .list-gantt-row{display:flex;gap:20px;align-items:flex-start;}
+  .list-col{flex:1;min-width:0;}
+  .gantt-panel{
+    flex:0 0 320px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px;position:sticky;top:16px;max-height:80vh;overflow-y:auto;
+  }
+  .gantt-panel-title{
+    font-family:'Poppins',sans-serif;font-weight:700;font-size:.82rem;color:var(--ink);
+    margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em;
+  }
+  .gantt-panel-note{font-size:.7rem;color:var(--muted);margin-top:8px;}
+  .gantt-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:.68rem;color:var(--muted);}
+  .gantt-legend span{display:inline-flex;align-items:center;gap:4px;}
+  .gantt-legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
   .access-gate{
     position:fixed;inset:0;background:var(--bg);z-index:999;
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -365,6 +380,8 @@
     #printArea th{background:#19283f;color:#fff;}
     #printArea tr.p-done td{color:#888;}
     #printArea .p-stats{margin-top:12px;font-size:.8rem;color:#555;}
+    #printArea .p-gantt-title{font-family:'Poppins',sans-serif;font-weight:700;color:#19283f;font-size:.95rem;margin:6px 0 6px;}
+    #printArea .p-gantt{margin-bottom:16px;border:1px solid #ddd;border-radius:6px;padding:8px;}
   }
 
   /* mobile / narrow screens */
@@ -402,6 +419,8 @@
     .reset-btn{width:100%;}
     .kanban-board{flex-direction:column;overflow-x:visible;}
     .kanban-col{flex:1 1 auto;max-height:none;}
+    .list-gantt-row{flex-direction:column;}
+    .gantt-panel{flex:1 1 auto;width:100%;position:static;max-height:none;}
   }
 </style>
 </head>
@@ -549,9 +568,24 @@
     <button class="view-btn" id="viewKanbanBtn">▦ Colonnes par statut</button>
   </div>
 
-  <div class="task-list" id="taskList"></div>
-  <div class="kanban-board" id="kanbanBoard"></div>
-  <button class="add-row" id="addBtn">+ Ajouter une tâche</button>
+  <div class="list-gantt-row">
+    <div class="list-col">
+      <div class="task-list" id="taskList"></div>
+      <div class="kanban-board" id="kanbanBoard"></div>
+      <button class="add-row" id="addBtn">+ Ajouter une tâche</button>
+    </div>
+    <aside class="gantt-panel" id="ganttPanel">
+      <div class="gantt-panel-title">Diagramme de Gantt</div>
+      <div id="ganttChartHost"></div>
+      <div class="gantt-legend">
+        <span><i class="dot" style="background:#5c6b78"></i>À faire</span>
+        <span><i class="dot" style="background:#e56843"></i>En cours</span>
+        <span><i class="dot" style="background:#e35d54"></i>Bloquée</span>
+        <span><i class="dot" style="background:#009f6f"></i>Terminée</span>
+      </div>
+      <div class="gantt-panel-note" id="ganttPanelNote"></div>
+    </aside>
+  </div>
 
   <div class="footer-bar">
     <div class="stats">
@@ -1030,6 +1064,7 @@ function render(){
   const vis = visibleTasks();
   const list = document.getElementById('taskList');
   const board = document.getElementById('kanbanBoard');
+  renderGanttPanel(vis);
 
   if(viewMode === 'kanban'){
     list.style.display = 'none';
@@ -1416,6 +1451,109 @@ const PRIO_LABEL = Object.fromEntries(PRIORITIES.map(p => [p.v, p.label]));
 
 function yearForMonth(m){ return m >= 8 ? yearStart : yearStart + 1; }
 
+const GANTT_STATUS_COLOR = { todo:'#5c6b78', progress:'#e56843', blocked:'#e35d54', done:'#009f6f' };
+
+function truncateText(str, n){
+  if(!str) return '';
+  return str.length > n ? str.slice(0, n - 1) + '…' : str;
+}
+
+function formatDateShort(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function ganttPlottable(list){
+  return list
+    .filter(t => t.debut || t.due)
+    .sort((a, b) => {
+      const ad = a.debut || a.due, bd = b.debut || b.due;
+      return ad < bd ? -1 : ad > bd ? 1 : 0;
+    });
+}
+
+function computeGanttRange(list){
+  let minD = null, maxD = null;
+  list.forEach(t => {
+    const s = t.debut || t.due;
+    const e = t.due || t.debut;
+    if(s && (!minD || s < minD)) minD = s;
+    if(e && (!maxD || e > maxD)) maxD = e;
+  });
+  if(!minD || !maxD) return null;
+  minD = addDaysISO(minD, -1);
+  maxD = addDaysISO(maxD, 1);
+  if(minD >= maxD) maxD = addDaysISO(minD, 1);
+  return {start: minD, end: maxD};
+}
+
+function buildGanttSVG(list, opts){
+  opts = opts || {};
+  const chartWidth = opts.width || 280;
+  const rowHeight = opts.rowHeight || 24;
+  const labelChars = opts.labelChars || 34;
+  const axisHeight = 18;
+
+  const range = computeGanttRange(list);
+  if(!range) return '';
+
+  const startMs = new Date(range.start + 'T00:00:00').getTime();
+  const endMs = new Date(range.end + 'T00:00:00').getTime();
+  const totalMs = Math.max(endMs - startMs, 86400000);
+
+  function xFor(dateStr){
+    const ms = new Date(dateStr + 'T00:00:00').getTime();
+    return ((ms - startMs) / totalMs) * chartWidth;
+  }
+
+  let bars = '';
+  list.forEach((t, i) => {
+    const s = t.debut || t.due;
+    const e = t.due || t.debut;
+    const x1 = xFor(s);
+    const x2 = Math.max(xFor(e), x1 + 4);
+    const rowTop = axisHeight + i * rowHeight;
+    const color = GANTT_STATUS_COLOR[t.status] || '#5c6b78';
+    const label = escapeHtml(truncateText(t.text || '(sans titre)', labelChars));
+    bars += `<text x="${x1.toFixed(1)}" y="${(rowTop + 8).toFixed(1)}" font-size="8.5" fill="#19283f" font-family="Verdana">${label}</text>`;
+    bars += `<rect x="${x1.toFixed(1)}" y="${(rowTop + 10).toFixed(1)}" width="${(x2 - x1).toFixed(1)}" height="9" rx="3" fill="${color}" opacity="0.85"/>`;
+  });
+
+  const height = axisHeight + list.length * rowHeight + 6;
+  const midMs = (startMs + endMs) / 2;
+  const midIso = new Date(midMs).toISOString().slice(0,10);
+
+  const axis = `
+    <line x1="0" y1="14" x2="${chartWidth}" y2="14" stroke="#dbe1d6" stroke-width="1"/>
+    <text x="0" y="10" font-size="8" fill="#5c6b78" font-family="Verdana">${formatDateShort(range.start)}</text>
+    <text x="${chartWidth / 2}" y="10" font-size="8" fill="#5c6b78" font-family="Verdana" text-anchor="middle">${formatDateShort(midIso)}</text>
+    <text x="${chartWidth}" y="10" font-size="8" fill="#5c6b78" font-family="Verdana" text-anchor="end">${formatDateShort(range.end)}</text>
+  `;
+
+  return `<svg viewBox="0 0 ${chartWidth} ${height}" width="100%" height="${height}" xmlns="http://www.w3.org/2000/svg">${axis}${bars}</svg>`;
+}
+
+function renderGanttPanel(vis){
+  const panel = document.getElementById('ganttPanel');
+  const host = document.getElementById('ganttChartHost');
+  const note = document.getElementById('ganttPanelNote');
+  if(viewMode === 'kanban'){
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  const plottable = ganttPlottable(vis);
+  const skipped = vis.length - plottable.length;
+  if(plottable.length === 0){
+    host.innerHTML = '<div class="empty-hint" style="padding:16px;font-size:.78rem;">Aucune date renseignée pour afficher un Gantt.</div>';
+    note.textContent = '';
+    return;
+  }
+  host.innerHTML = buildGanttSVG(plottable, {width: 280});
+  note.textContent = skipped > 0 ? `${skipped} tâche(s) sans date non affichée(s).` : '';
+}
+
+
 function buildPrintReport(){
   const vis = visibleTasks();
   const periodLabel = activeMonth === 'all'
@@ -1442,9 +1580,16 @@ function buildPrintReport(){
   const done = vis.filter(t => t.status === 'done').length;
   const blocked = vis.filter(t => t.status === 'blocked').length;
 
+  const ganttPlot = ganttPlottable(vis);
+  const ganttSVG = ganttPlot.length > 0 ? buildGanttSVG(ganttPlot, {width: 700, rowHeight: 20, labelChars: 60}) : '';
+  const ganttSection = ganttSVG
+    ? `<div class="p-gantt-title">Diagramme de Gantt</div><div class="p-gantt">${ganttSVG}</div>`
+    : '';
+
   document.getElementById('printArea').innerHTML = `
     <h1>EUT — État des lieux des tâches</h1>
     <div class="p-sub">${periodLabel} — édité le ${generated}</div>
+    ${ganttSection}
     <table>
       <thead>
         <tr><th>Tâche</th><th>Nature</th><th>Demandeur</th><th>Priorité</th><th>Statut</th><th>Mois</th><th>Début</th><th>Échéance</th><th>Notes</th></tr>
